@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>经典扫雷 | 网页版游戏</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: linear-gradient(145deg, #4a5b6e 0%, #2c3e2f 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Courier New', 'Monaco', monospace;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* 游戏面板容器 */
+        .game-container {
+            background: #b0b0b0;
+            padding: 24px 20px 20px 20px;
+            border-radius: 24px;
+            box-shadow: 8px 8px 16px rgba(0,0,0,0.4), inset -2px -2px 4px rgba(0,0,0,0.2), inset 2px 2px 4px rgba(255,255,255,0.6);
+        }
+
+        /* 控制栏区域 */
+        .control-bar {
+            background: #c0c0c0;
+            border-radius: 12px;
+            padding: 10px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2), inset -1px -1px 2px rgba(255,255,255,0.7), 2px 2px 5px rgba(0,0,0,0.3);
+        }
+
+        /* 计分板和雷数显示器 */
+        .info-panel {
+            background: #000000;
+            color: #f44;
+            font-size: 2rem;
+            font-weight: bold;
+            font-family: 'Digital-7', 'Courier New', monospace;
+            padding: 4px 12px;
+            border-radius: 10px;
+            letter-spacing: 4px;
+            text-shadow: 0 0 3px red;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5), inset -1px -1px 2px rgba(255,255,255,0.2);
+        }
+
+        .emoji-btn {
+            background: #d4d4d4;
+            font-size: 2.4rem;
+            border: none;
+            cursor: pointer;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            box-shadow: 3px 3px 6px rgba(0,0,0,0.3), inset -1px -1px 2px rgba(0,0,0,0.2), inset 1px 1px 2px white;
+            transition: 0.05s linear;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #c2c2c2;
+        }
+
+        .emoji-btn:active {
+            transform: scale(0.94);
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.4);
+        }
+
+        /* 难度切换区 */
+        .difficulty-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .difficulty-btn {
+            background: #e0e0e0;
+            border: none;
+            font-family: monospace;
+            font-weight: bold;
+            padding: 6px 16px;
+            border-radius: 28px;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.3), inset -1px -1px 1px rgba(0,0,0,0.1), inset 1px 1px 2px white;
+            transition: 0.07s;
+        }
+
+        .difficulty-btn.active {
+            background: #9bb7d2;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.3);
+            transform: scale(0.97);
+            color: white;
+            text-shadow: 0 1px 1px black;
+        }
+
+        /* 扫雷网格 */
+        .board {
+            display: grid;
+            justify-content: center;
+            background-color: #9e9e9e;
+            padding: 12px;
+            border-radius: 16px;
+            box-shadow: inset 2px 2px 6px rgba(0,0,0,0.4), inset -2px -2px 3px rgba(255,255,255,0.5);
+        }
+
+        /* 格子样式 */
+        .cell {
+            width: 34px;
+            height: 34px;
+            background-color: #bdbdbd;
+            border: 1px solid #7e7e7e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: inset -1px -1px 0px #404040, inset 1px 1px 0px #f0f0f0;
+            transition: 0.02s linear;
+            font-family: monospace;
+        }
+
+        /* 已翻开格子风格 */
+        .cell.revealed {
+            background-color: #d0d0d0;
+            box-shadow: inset 0 0 0 1px #a0a0a0;
+            border: none;
+            cursor: default;
+        }
+
+        /* 标记旗子样式 */
+        .cell.flagged::before {
+            content: "🚩";
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        .cell.flagged {
+            font-size: 0;
+        }
+
+        /* 数字颜色 */
+        .cell[data-value="1"] { color: #0100fe; }
+        .cell[data-value="2"] { color: #017e00; }
+        .cell[data-value="3"] { color: #fe0000; }
+        .cell[data-value="4"] { color: #010081; }
+        .cell[data-value="5"] { color: #810101; }
+        .cell[data-value="6"] { color: #00817e; }
+        .cell[data-value="7"] { color: #000000; }
+        .cell[data-value="8"] { color: #7e7e7e; }
+
+        /* 炸弹爆炸效果 */
+        .cell.mine-blast {
+            background-color: #f77;
+            color: black;
+        }
+
+        /* 游戏结束/胜利遮罩 (消息层) */
+        .game-message {
+            text-align: center;
+            margin-top: 14px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            background: #e8cf9a;
+            padding: 5px;
+            border-radius: 40px;
+            color: #3d2a1a;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 0.75rem;
+            color: #ececec;
+            text-shadow: 1px 1px 0 #1e2a1f;
+        }
+
+        @media (max-width: 550px) {
+            .cell {
+                width: 28px;
+                height: 28px;
+                font-size: 1rem;
+            }
+            .info-panel {
+                font-size: 1.4rem;
+                padding: 2px 10px;
+            }
+            .emoji-btn {
+                width: 48px;
+                height: 48px;
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div>
+    <div class="game-container">
+        <div class="control-bar">
+            <div class="info-panel" id="mineCounter">000</div>
+            <button class="emoji-btn" id="resetButton">😊</button>
+            <div class="info-panel" id="flagCounter">000</div>
+        </div>
+
+        <div class="difficulty-row">
+            <button data-diff="easy" class="difficulty-btn active">🍃 简单 9x9</button>
+            <button data-diff="medium" class="difficulty-btn">⚡ 中等 16x16</button>
+            <button data-diff="hard" class="difficulty-btn">🔥 困难 16x30</button>
+        </div>
+
+        <div id="boardContainer" class="board"></div>
+        <div id="gameStatusMsg" class="game-message">✨ 点击格子开始 ✨</div>
+    </div>
+    <footer>🖱️ 左键开格 · 右键/长按标记🚩 | 再按旗子取消</footer>
+</div>
+
+<script>
+    // ---------- 扫雷核心逻辑 ----------
+    let currentDifficulty = 'easy';    // 'easy', 'medium', 'hard'
+    let rows = 9, cols = 9, totalMines = 10;
+
+    // 游戏状态
+    let board = [];          // 存储每个格子对象: { isMine, revealed, flagged, neighborMines }
+    let gameActive = true;   // false表示游戏结束 (输或赢)
+    let winFlag = false;     // 是否胜利（用于避免胜利后再触发事件）
+    let firstMove = true;    // 是否第一次点击未翻开任何格子 (用于防止首点踩雷 + 布雷)
+
+    // DOM 元素
+    const boardContainer = document.getElementById('boardContainer');
+    const mineCounterSpan = document.getElementById('mineCounter');
+    const flagCounterSpan = document.getElementById('flagCounter');
+    const resetBtn = document.getElementById('resetButton');
+    const gameStatusDiv = document.getElementById('gameStatusMsg');
+    const diffBtns = document.querySelectorAll('.difficulty-btn');
+
+    // 辅助函数: 根据难度更新参数
+    function updateDifficultyParams() {
+        if (currentDifficulty === 'easy') {
+            rows = 9; cols = 9; totalMines = 10;
+        } else if (currentDifficulty === 'medium') {
+            rows = 16; cols = 16; totalMines = 40;
+        } else if (currentDifficulty === 'hard') {
+            rows = 16; cols = 30; totalMines = 99;
+        }
+    }
+
+    // 格式化显示数字 (3位)
+    function formatCounter(num) {
+        if (num < 0) num = 0;
+        if (num > 999) return '999';
+        return num.toString().padStart(3, '0');
+    }
+
+    // 更新界面上的雷数指示器 (剩余未标记雷数参考显示: 剩余雷数 = totalMines - 已放置旗子数)
+    function updateCounters() {
+        let flaggedCount = 0;
+        for (let i = 0; i < rows; i++) {
+            for (let j = 0; j < cols; j++) {
+                if (board[i][j].flagged) flaggedCount++;
+            }
+        }
+        let remainingMines = totalMines - flaggedCount;
+        mineCounterSpan.innerText = formatCounter(remainingMines);
+        flagCounterSpan.innerText = formatCounter(flaggedCount);
+    }
+
+    // 重新初始化空白板 (不布雷, 仅数据结构)
+    function initEmptyBoard() {
+        const newBoard = [];
+        for (let i = 0; i < rows; i++) {
+            newBoard[i] = [];
+            for (let j = 0; j < cols; j++) {
+                newBoard[i][j] = {
+                    isMine: false,
+                    revealed: false,
+                    flagged: false,
+                    neighborMines: 0
+                };
+            }
+        }
+        return newBoard;
+    }
+
+    // 计算每个非雷格子周围的雷数 (全盘)
+    function computeNeighbors(boardData) {
+        const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        for (let i = 0; i < rows; i++) {
+            for (let j = 0; j < cols; j++) {
+                if (boardData[i][j].isMine) {
+                    boardData[i][j].neighborMines = -1;
+                    continue;
+                }
+                let cnt = 0;
+                for (let d of dirs) {
+                    const ni = i + d[0], nj = j + d[1];
+                    if (ni >= 0 && ni < rows && nj >= 0 && nj < cols && boardData[ni][nj].isMine) cnt++;
+                }
+                boardData[i][j].neighborMines = cnt;
+            }
+        }
+    }
+
+    // 布雷: 保证第一次点击的格子 (firstRow, firstCol) 不是雷, 并且避开该格子周围? 经典扫雷首格安全即可，无需复杂, 但要保证不踩雷
+    function placeMines(firstRow, firstCol) {
+        // 全新板子全清空
+        const newBoard = initEmptyBoard();
+        let minesPlaced = 0;
+        // 为了避免重复且首格无雷
+        while (minesPlaced < totalMines) {
+            const randRow = Math.floor(Math.random() * rows);
+            const randCol = Math.floor(Math.random() * cols);
+            // 不是首格位置且当前格无雷
+            if (!(randRow === firstRow && randCol === firstCol) && !newBoard[randRow][randCol].isMine) {
+                newBoard[randRow][randCol].isMine = true;
+                minesPlaced++;
+            }
+        }
+        computeNeighbors(newBoard);
+        return newBoard;
+    }
+
+    // 递归展开空白区域 ( Flood Fill )
+    function revealEmptyArea(row, col, visitedSet = null) {
+        if (!gameActive) return;
+        const cell = board[row][col];
+        if (cell.revealed || cell.flagged) return;
+
+        // 避免递归过深用set去重控制 (但其实逻辑里已经判断revealed)
+        cell.revealed = true;
+        if (cell.neighborMines === 0 && !cell.isMine) {
+            const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+            for (let d of dirs) {
+                const ni = row + d[0], nj = col + d[1];
+                if (ni >= 0 && ni < rows && nj >= 0 && nj < cols && !board[ni][nj].revealed && !board[ni][nj].flagged && !board[ni][nj].isMine) {
+                    revealEmptyArea(ni, nj);
+                }
+            }
+        }
+    }
+
+    // 翻开格子 (主要逻辑)
+    function revealCell(row, col) {
+        if (!gameActive) return false;
+        const cell = board[row][col];
+        if (cell.revealed) return false;
+        if (cell.flagged) {
+            gameStatusDiv.innerText = '🚫 请取消旗子后再点击 🚫';
+            setTimeout(() => { if(gameActive) gameStatusDiv.innerText = '游戏进行中'; }, 700);
+            return false;
+        }
+
+        if (cell.isMine) {
+            // 踩雷 Game Over
+            cell.revealed = true;
+            cell.flagged = false;
+            gameActive = false;
+            winFlag = false;
+            gameStatusDiv.innerText = '💣 踩到地雷！游戏结束 💣';
+            // 显示所有地雷
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    if (board[i][j].isMine) {
+                        board[i][j].revealed = true;
+                        board[i][j].flagged = false;
+                    }
+                }
+            }
+            // 标记当前爆炸的格子特殊样式
+            renderBoard();
+            const blastCellDiv = document.querySelector(`.cell[data-row='${row}'][data-col='${col}']`);
+            if (blastCellDiv) blastCellDiv.classList.add('mine-blast');
+            document.getElementById('resetButton').innerHTML = '💀';
+            return false;
+        }
+
+        // 安全格子: 翻开
+        if (cell.neighborMines === 0) {
+            revealEmptyArea(row, col);
+        } else {
+            cell.revealed = true;
+        }
+        renderBoard();
+
+        // 胜利判定: 所有非雷格子均已翻开
+        let allSafeRevealed = true;
+        for (let i = 0; i < rows; i++) {
+            for (let j = 0; j < cols; j++) {
+                if (!board[i][j].isMine && !board[i][j].revealed) {
+                    allSafeRevealed = false;
+                    break;
+                }
+            }
+        }
+        if (allSafeRevealed && gameActive) {
+            gameActive = false;
+            winFlag = true;
+            gameStatusDiv.innerText = '🎉 胜利！ 完美排雷 🎉';
+            document.getElementById('resetButton').innerHTML = '😎';
+            renderBoard(); // 重新渲染，不再响应点击
+            return true;
+        }
+        return true;
+    }
+
+    // 标记旗子 / 取消旗子 (右键)
+    function toggleFlag(row, col, isRightClick = true) {
+        if (!gameActive) return false;
+        const cell = board[row][col];
+        if (cell.revealed) return false; // 已翻开不能标记
+        if (!cell.flagged) {
+            // 标记旗子
+            cell.flagged = true;
+        } else {
+            cell.flagged = false;
+        }
+        renderBoard();
+        updateCounters();
+        // 额外胜利判定：旗子标记正确并覆盖所有雷可以胜利但更符合直觉只要所有非雷翻开即胜利，但如果玩家旗子标记完所有雷且剩余未开格子全是雷自动胜利判定?
+        // 经典扫雷胜利条件是所有非雷格子翻开，所以不需要额外校验，我们已经有翻开判定胜利，但为了友好稍加自动胜利(可选):
+        // 另外检测: 所有地雷都被旗子标记且所有非雷已翻开 -> 但前面翻开判定已经涵盖，不需重复。
+        // 但是如果有玩家全旗子标记所有雷但没有完全翻开非雷依然不会胜利，这个合理。
+        return true;
+    }
+
+    // 渲染网格
+    function renderBoard() {
+        boardContainer.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+        boardContainer.innerHTML = '';
+        for (let i = 0; i < rows; i++) {
+            for (let j = 0; j < cols; j++) {
+                const cell = board[i][j];
+                const cellDiv = document.createElement('div');
+                cellDiv.className = 'cell';
+                if (cell.revealed) cellDiv.classList.add('revealed');
+                if (cell.flagged && !cell.revealed) cellDiv.classList.add('flagged');
+                // 添加自定义属性标记坐标
+                cellDiv.setAttribute('data-row', i);
+                cellDiv.setAttribute('data-col', j);
+
+                // 显示内容
+                if (cell.revealed) {
+                    if (cell.isMine) {
+                        cellDiv.innerText = '💣';
+                        cellDiv.style.fontSize = '1.2rem';
+                    } else {
+                        const neighborVal = cell.neighborMines;
+                        if (neighborVal > 0) {
+                            cellDiv.innerText = neighborVal;
+                            cellDiv.setAttribute('data-value', neighborVal);
+                        } else {
+                            cellDiv.innerText = '';
+                        }
+                    }
+                } else {
+                    // 未翻开状态，旗子通过伪类显示，内容为空
+                    if (!cell.flagged) cellDiv.innerText = '';
+                    else cellDiv.innerText = ''; // 伪类显示旗子
+                }
+
+                // 添加事件监听 (统一在渲染时绑定替换, 避免内存问题但直接绑定新dom)
+                cellDiv.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!gameActive) return;
+                    if (cell.revealed) return;
+                    if (cell.flagged) return;
+                    revealCell(i, j);
+                    updateCounters();
+                    // 游戏结束时重置按钮表情改变
+                    if (!gameActive && !winFlag) document.getElementById('resetButton').innerHTML = '😵';
+                    else if (winFlag) document.getElementById('resetButton').innerHTML = '🏆';
+                });
+
+                cellDiv.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    if (!gameActive) return false;
+                    if (cell.revealed) return false;
+                    toggleFlag(i, j, true);
+                    updateCounters();
+                    return false;
+                });
+
+                // 移动端长按辅助: 简单的 touch 模拟右键
+                let touchTimer = null;
+                cellDiv.addEventListener('touchstart', (e) => {
+                    if (!gameActive) return;
+                    if (cell.revealed) return;
+                    touchTimer = setTimeout(() => {
+                        e.preventDefault();
+                        toggleFlag(i, j, true);
+                        updateCounters();
+                        touchTimer = null;
+                    }, 500);
+                });
+                cellDiv.addEventListener('touchend', (e) => {
+                    if (touchTimer) {
+                        clearTimeout(touchTimer);
+                        touchTimer = null;
+                        // 如果没有长按触发的flag，且游戏活跃且格子未翻开未旗子，执行左键点击逻辑
+                        if (gameActive && !cell.revealed && !cell.flagged) {
+                            revealCell(i, j);
+                            updateCounters();
+                            if (!gameActive && !winFlag) document.getElementById('resetButton').innerHTML = '😵';
+                            else if (winFlag) document.getElementById('resetButton').innerHTML = '🏆';
+                        }
+                    }
+                });
+                cellDiv.addEventListener('touchcancel', () => {
+                    if (touchTimer) clearTimeout(touchTimer);
+                });
+
+                boardContainer.appendChild(cellDiv);
+            }
+        }
+        // 更新计数器
+        updateCounters();
+    }
+
+    // 启动新游戏 (重置全部)
+    function newGame(clickRow = -1, clickCol = -1, isFirstMoveSync = false) {
+        gameActive = true;
+        winFlag = false;
+        firstMove = true;
+        document.getElementById('resetButton').innerHTML = '😊';
+        // 重置时需要用临时初始板子并依据首次点击布雷（但newGame调用通常是重置按钮或改难度且还没有点击事件）
+        // 为了行为统一，我们创建一个空板，但是实际布雷需要延迟到第一次点击
+        // 简单做法：初始准备一个无雷空板，firstMove标志为true，待第一次点击调用 placeMinesOnFirstClick
+        board = initEmptyBoard();
+        computeNeighbors(board); // 全0邻接
+        renderBoard();
+        updateCounters();
+        gameStatusDiv.innerText = '✨ 点击格子，首格安全 ✨';
+        // 如果重置时传入了指定点击 (但通常没有)
+        firstMove = true;
+    }
+
+    // 真正第一次点击时进行布雷并重新执行翻开操作
+    function firstClickReveal(row, col) {
+        // 根据点击位置布雷
+        const newBoard = placeMines(row, col);
+        board = newBoard;
+        // 布雷后执行翻开该格子
+        gameActive = true;
+        winFlag = false;
+        firstMove = false;
+        // 清除旗子标记残留 (新版板没有旗子)
+        renderBoard();
+        // 递归翻开当前无雷格子
+        const cell = board[row][col];
+        if (!cell.isMine) {
+            if (cell.neighborMines === 0) {
+                revealEmptyArea(row, col);
+            } else {
+                cell.revealed = true;
+            }
+        } else {
+            // 理论上placeMines已经保证首格无雷，不会进入这里
+            cell.revealed = true;
+            gameActive = false;
+            gameStatusDiv.innerText = '💣 程序异常? 重新开始';
+        }
+        renderBoard();
+        updateCounters();
+        // 胜利判定在reveal中已有，但调用reveal可能已触发 
+        let allSafe = true;
+        for (let i=0;i<rows;i++) {
+            for(let j=0;j<cols;j++) {
+                if(!board[i][j].isMine && !board[i][j].revealed) allSafe=false;
+            }
+        }
+        if(allSafe && gameActive) {
+            gameActive=false;
+            winFlag=true;
+            gameStatusDiv.innerText='🎉 胜利！ 完美排雷 🎉';
+            document.getElementById('resetButton').innerHTML='😎';
+            renderBoard();
+        }
+    }
+
+    // 封装重置并且让首格逻辑有效
+    function resetAndNewGame() {
+        board = initEmptyBoard();
+        computeNeighbors(board);
+        gameActive = true;
+        winFlag = false;
+        firstMove = true;
+        renderBoard();
+        updateCounters();
+        gameStatusDiv.innerText = '✨ 点击格子，首格安全 ✨';
+        document.getElementById('resetButton').innerHTML = '😊';
+        // 覆盖掉全局board的事件外，renderBoard绑定新的点击行为，点击时候会调用统一入口
+    }
+
+    // 重写原有的点击拦截 —— 由于renderBoard动态绑定了事件，但需要处理首次布阵。我们需要在revealCell内部检查firstMove全局
+    // 为了保留原函数整洁，保留原有revealCell，但修改revealCell开头加入首格处理:
+    const originalRevealCell = revealCell;
+    window.revealCell = function(row, col) {
+        if (!gameActive) return false;
+        if (firstMove === true) {
+            // 首次点击处理布雷逻辑
+            firstClickReveal(row, col);
+            return true;
+        } else {
+            return originalRevealCell(row, col);
+        }
+    };
+    // 替换全局调用
+    window.revealCellBind = window.revealCell;
+    // 重新定义 revealCell 函数
+    revealCell = function(row, col) {
+        if (!gameActive) return false;
+        if (firstMove === true) {
+            firstClickReveal(row, col);
+            return true;
+        } else {
+            return originalRevealCell(row, col);
+        }
+    };
+
+    // 难度切换
+    function setDifficulty(level) {
+        currentDifficulty = level;
+        updateDifficultyParams();
+        resetAndNewGame();
+        // 激活样式
+        diffBtns.forEach(btn => {
+            if(btn.getAttribute('data-diff') === level) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        // 强制重置网格大小样式
+        boardContainer.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    }
+
+    // 重置按钮逻辑
+    resetBtn.addEventListener('click', () => {
+        setDifficulty(currentDifficulty);
+    });
+
+    diffBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const diff = btn.getAttribute('data-diff');
+            if (diff === 'easy') setDifficulty('easy');
+            else if (diff === 'medium') setDifficulty('medium');
+            else if (diff === 'hard') setDifficulty('hard');
+        });
+    });
+
+    // 初始化默认游戏 (easy)
+    function init() {
+        updateDifficultyParams();
+        resetAndNewGame();
+    }
+    init();
+</script>
+</body>
+</html>
